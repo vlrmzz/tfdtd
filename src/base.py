@@ -2,8 +2,6 @@ import numpy as np
 import torch
 import pytorch_lightning as pl
 
-#from sources import plane_wave
-
 class FDTD2D(pl.LightningModule):
     def __init__(self, params):
         super().__init__()
@@ -64,9 +62,11 @@ class FDTD2D(pl.LightningModule):
             self.Hy = torch.zeros((self.grid_size_x, self.grid_size_y), dtype=torch.float64)
             self.Ez = torch.zeros((self.grid_size_x, self.grid_size_y), dtype=torch.float64)
             self.Dz = torch.zeros((self.grid_size_x, self.grid_size_y), dtype=torch.float64)
+            self.Iz = torch.zeros((self.grid_size_x, self.grid_size_y), dtype=torch.float64)
             self.iHx = torch.zeros((self.grid_size_x, self.grid_size_y), dtype=torch.float64)
             self.iHy = torch.zeros((self.grid_size_x, self.grid_size_y), dtype=torch.float64)
             self.gaz = torch.ones((self.grid_size_x, self.grid_size_y), dtype=torch.float64)
+            self.gbz = torch.zeros((self.grid_size_x, self.grid_size_y), dtype=torch.float64)
         else:
             raise ValueError(f"Invalid polarization: {self.polarization}. Must be 'TE' or 'TM'.")
 
@@ -142,9 +142,9 @@ class FDTD2D(pl.LightningModule):
         # Absorbing boundary conditions
         self.Ez_inc[:, 0] = self.boundary_low.pop(0)
         self.boundary_low.append(self.Ez_inc[:, 1])
+
         self.Ez_inc[:, je-1] = self.boundary_high.pop(0)
         self.boundary_high.append(self.Ez_inc[:, je-2])
-
 
         # Calculate Dz
         self.Dz[1:ie, 1:je] = self.gi3[1:ie, :] * self.gj3[:, 1:je] * self.Dz[1:ie, 1:je] + \
@@ -152,25 +152,26 @@ class FDTD2D(pl.LightningModule):
                                  (self.Hy[1:ie, 1:je] - self.Hy[0:ie-1, 1:je] - self.Hx[1:ie, 1:je] + self.Hx[1:ie, 0:je-1])
 
         # Inject the source
-        pulse = np.sin(2 * np.pi * 1500 * 1e6 * self.dt * time_step)
+        pulse = np.exp(-0.5 * ((20 - time_step) / 8) ** 2)
         self.Ez_inc[:, 3] = pulse
 
         # Incident Dz values
-        self.Dz[self.ia:self.ib, self.ja] = self.Dz[self.ia:self.ib, self.ja] + \
-                                     0.5 * self.Hx_inc[:, self.ja-1:self.ja]
-        self.Dz[self.ia:self.ib, self.jb] = self.Dz[self.ia:self.ib, self.jb] - \
-                                     0.5 * self.Hx_inc[:, self.jb-1:self.jb]
-
-        self.Hx_inc[:, 0:je-1] = self.Hx_inc[:, 0:je-1] + \
-                               0.5 * (self.Ez_inc[:, 0:je-1] - self.Ez_inc[:, 1:je])
+        self.Dz[self.ia:self.ib+1, self.ja] = self.Dz[self.ia:self.ib+1, self.ja] + \
+                                            0.5 * self.Hx_inc[:, self.ja-1]
+        self.Dz[self.ia:self.ib+1, self.jb] = self.Dz[self.ia:self.ib+1, self.jb] - \
+                                            0.5 * self.Hx_inc[:, self.jb-1]
 
         # Calculate Ez
-        self.Ez[1:ie, 1:je] = self.Dz[1:ie, 1:je] * self.gaz[1:ie, 1:je]
+        self.Ez = self.gaz * (self.Dz - self.Iz)
+        self.Iz = self.Iz + self.gbz * self.Ez
+
+        # Incident Hx values
+        self.Hx_inc[:, 0:je-1] = self.Hx_inc[:, 0:je-1] + \
+                            0.5 * (self.Ez_inc[:, 0:je-1] - self.Ez_inc[:, 1:je])
 
         # Calculate Hx
         # Calculate the curl of E-field
         curl_e = self.Ez[:-1, :-1] - self.Ez[:-1, 1:]
-
         # Update H-field in PML region
         self.iHx[:-1, :-1] = self.iHx[:-1, :-1] + curl_e
         self.Hx[:-1, :-1] = self.fj3[:, :-1] * self.Hx[:-1, :-1] + \
