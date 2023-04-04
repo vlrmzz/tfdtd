@@ -1,6 +1,8 @@
 import numpy as np
 import torch
-import pytorch_lightning as pl 
+import pytorch_lightning as pl
+
+import src.sources as sources
 
 class FDTD2D(pl.LightningModule):
     def __init__(self, params):
@@ -17,6 +19,11 @@ class FDTD2D(pl.LightningModule):
         self.init_params()
         self.init_grid()
         self.init_pml()
+        #self.init_plane_wave()
+        # Set up PML, TFSF, and material distribution
+        #self.setup_pml()
+        #self.setup_tfsf()
+        #self.setup_material_distribution()
 
     def init_params(self):
         # Simulation parameters
@@ -35,17 +42,8 @@ class FDTD2D(pl.LightningModule):
         self.tfsf_thickness = self.params.get('tfsf_thickness', 10)
         self.polarization = self.params.get('polarization', 'TM')
         # Source
-        self.function = self.params.get('function', 'gaussian')
-            #plane_wave
-        self.use_plane_wave = self.params.get('use_plane_wave', True)
-        self.ia = self.params.get('start_x', 7)
-        self.ja = self.params.get('start_y', 7)
-            #point_source
-        self.use_point_source = self.params.get('use_point_source', False)
-        self.source_x = self.params.get('source_x', 150)
-        self.source_y = self.params.get('source_y', 150)
-
-        # Physical constants
+        self.source_type = self.params.get('source_type', 'point_source')
+         # Physical constants
         self.c = 299792458  # Speed of light in vacuum
         self.epsilon_0 = 8.85418782e-12  # Permittivity of free space
         self.mu_0 = 1.25663706e-6  # Permeability of free space
@@ -121,80 +119,85 @@ class FDTD2D(pl.LightningModule):
                 self.fj3[0, n] = (1 - xn) / (1 + xn)
                 self.fj3[0, j - 2 - n] = (1 - xn) / (1 + xn)
     
-    # def init_plane_wave(self):
-    #     self.Ez_inc = torch.zeros((1,self.ny), dtype=torch.float64)
-    #     self.Hx_inc = torch.zeros((1,self.ny), dtype=torch.float64)
-    #     self.ib = self.nx - self.ia - 1 
-    #     self.jb = self.ny - self.ja - 1
+    def init_plane_wave(self):
+        self.Ez_inc = torch.zeros((1,self.ny), dtype=torch.float64)
+        self.Hx_inc = torch.zeros((1,self.ny), dtype=torch.float64)
+        self.ib = self.nx - self.ia - 1 
+        self.jb = self.ny - self.ja - 1
 
-    #     # Absorbing Boundary Conditions 
-    #     self.boundary_low = [0, 0] 
-    #     self.boundary_high = [0, 0]
+        # Absorbing Boundary Conditions 
+        self.boundary_low = [0, 0] 
+        self.boundary_high = [0, 0]
 
-    # def simulation_step(self, time_step):
-    #     ie, je = self.nx, self.ny
+    def simulation_step(self, time_step):
+        self.actual_time_step = time_step
+        ie, je = self.nx, self.ny
 
-    #     self.Ez_inc[:, 1:je] = self.Ez_inc[:, 1:je] + \
-    #                         0.5 * (self.Hx_inc[:, 0:je-1] - self.Hx_inc[:, 1:je])
+        # self.Ez_inc[:, 1:je] = self.Ez_inc[:, 1:je] + \
+        #                     0.5 * (self.Hx_inc[:, 0:je-1] - self.Hx_inc[:, 1:je])
 
-    #     # Absorbing boundary conditions
-    #     self.Ez_inc[:, 0] = self.boundary_low.pop(0)
-    #     self.boundary_low.append(self.Ez_inc[:, 1])
+        # # Absorbing boundary conditions
+        # self.Ez_inc[:, 0] = self.boundary_low.pop(0)
+        # self.boundary_low.append(self.Ez_inc[:, 1])
 
-    #     self.Ez_inc[:, je-1] = self.boundary_high.pop(0)
-    #     self.boundary_high.append(self.Ez_inc[:, je-2])
+        # self.Ez_inc[:, je-1] = self.boundary_high.pop(0)
+        # self.boundary_high.append(self.Ez_inc[:, je-2])
 
-    #     # Calculate Dz
-    #     self.Dz[1:ie, 1:je] = self.gi3[1:ie, :] * self.gj3[:, 1:je] * self.Dz[1:ie, 1:je] + \
-    #                              self.gi2[1:ie, :] * self.gj2[:, 1:je] * 0.5 * \
-    #                              (self.Hy[1:ie, 1:je] - self.Hy[0:ie-1, 1:je] - self.Hx[1:ie, 1:je] + self.Hx[1:ie, 0:je-1])
+        # Calculate Dz
+        self.Dz[1:ie, 1:je] = self.gi3[1:ie, :] * self.gj3[:, 1:je] * self.Dz[1:ie, 1:je] + \
+                                 self.gi2[1:ie, :] * self.gj2[:, 1:je] * 0.5 * \
+                                 (self.Hy[1:ie, 1:je] - self.Hy[0:ie-1, 1:je] - self.Hx[1:ie, 1:je] + self.Hx[1:ie, 0:je-1])
 
-    #     # Inject the source
-    #     pulse = np.exp(-0.5 * ((20 - time_step) / 8) ** 2)
-    #     self.Ez_inc[:, 3] = pulse
+        # Incident Dz values
+        # self.Dz[self.ia:self.ib+1, self.ja] = self.Dz[self.ia:self.ib+1, self.ja] + \
+        #                                     0.5 * self.Hx_inc[:, self.ja-1]
+        # self.Dz[self.ia:self.ib+1, self.jb] = self.Dz[self.ia:self.ib+1, self.jb] - \
+        #                                     0.5 * self.Hx_inc[:, self.jb-1]
 
-    #     # Incident Dz values
-    #     self.Dz[self.ia:self.ib+1, self.ja] = self.Dz[self.ia:self.ib+1, self.ja] + \
-    #                                         0.5 * self.Hx_inc[:, self.ja-1]
-    #     self.Dz[self.ia:self.ib+1, self.jb] = self.Dz[self.ia:self.ib+1, self.jb] - \
-    #                                         0.5 * self.Hx_inc[:, self.jb-1]
+        # Calculate Ez
+        self.Ez = self.gaz * (self.Dz - self.Iz)
+        self.Iz = self.Iz + self.gbz * self.Ez
 
-    #     # Calculate Ez
-    #     self.Ez = self.gaz * (self.Dz - self.Iz)
-    #     self.Iz = self.Iz + self.gbz * self.Ez
+        # # Incident Hx values
+        # self.Hx_inc[:, 0:je-1] = self.Hx_inc[:, 0:je-1] + \
+        #                     0.5 * (self.Ez_inc[:, 0:je-1] - self.Ez_inc[:, 1:je])
 
-    #     # Incident Hx values
-    #     self.Hx_inc[:, 0:je-1] = self.Hx_inc[:, 0:je-1] + \
-    #                         0.5 * (self.Ez_inc[:, 0:je-1] - self.Ez_inc[:, 1:je])
+        # Calculate Hx
+        # Calculate the curl of E-field
+        curl_e = self.Ez[:-1, :-1] - self.Ez[:-1, 1:]
+        # Update H-field in PML region
+        self.iHx[:-1, :-1] = self.iHx[:-1, :-1] + curl_e
+        self.Hx[:-1, :-1] = self.fj3[:, :-1] * self.Hx[:-1, :-1] + \
+                            self.fj2[:, :-1] * (0.5 * curl_e + self.fi1[:-1, :] * self.iHx[:-1, :-1])
 
-    #     # Calculate Hx
-    #     # Calculate the curl of E-field
-    #     curl_e = self.Ez[:-1, :-1] - self.Ez[:-1, 1:]
-    #     # Update H-field in PML region
-    #     self.iHx[:-1, :-1] = self.iHx[:-1, :-1] + curl_e
-    #     self.Hx[:-1, :-1] = self.fj3[:, :-1] * self.Hx[:-1, :-1] + \
-    #                         self.fj2[:, :-1] * (0.5 * curl_e + self.fi1[:-1, :] * self.iHx[:-1, :-1])
+        # # Incident Hx values
+        # self.Hx[:, self.ja-1] = self.Hx[:, self.ja-1] + \
+        #                 0.5 * self.Ez_inc[:, self.ja]
+        # self.Hx[:, self.jb] = self.Hx[:, self.jb] - \
+        #               0.5 * self.Ez_inc[:, self.jb]
 
-    #     # Incident Hx values
-    #     self.Hx[:, self.ja-1] = self.Hx[:, self.ja-1] + \
-    #                     0.5 * self.Ez_inc[:, self.ja]
-    #     self.Hx[:, self.jb] = self.Hx[:, self.jb] - \
-    #                   0.5 * self.Ez_inc[:, self.jb]
+        # Calculate Hy
+        # Calculate the curl of E-field
+        curl_e = self.Ez[:-1, :-1] - self.Ez[1:, :-1]
 
-    #     # Calculate Hy
-    #     # Calculate the curl of E-field
-    #     curl_e = self.Ez[:-1, :-1] - self.Ez[1:, :-1]
+        # Update H-field in PML region
+        self.iHy[:-1, :-1] = self.iHy[:-1, :-1] + curl_e
+        self.Hy[:-1, :-1] = self.fi3[:-1, :] * self.Hy[:-1, :-1] - \
+                            self.fi2[:-1, :] * (0.5 * curl_e + self.fj1[:, :-1] * self.iHy[:-1, :-1])
 
-    #     # Update H-field in PML region
-    #     self.iHy[:-1, :-1] = self.iHy[:-1, :-1] + curl_e
-    #     self.Hy[:-1, :-1] = self.fi3[:-1, :] * self.Hy[:-1, :-1] - \
-    #                         self.fi2[:-1, :] * (0.5 * curl_e + self.fj1[:, :-1] * self.iHy[:-1, :-1])
+        # # Incident Hy values
+        # self.Hy[self.ia-1, self.ja:self.jb] = self.Hy[self.ia-1, self.ja:self.jb] - \
+        #                                0.5 * self.Ez_inc[:, self.ja:self.jb]
+        # self.Hy[self.ib-1, self.ja:self.jb] = self.Hy[self.ib-1, self.ja:self.jb] + \
+        #                                0.5 * self.Ez_inc[:, self.ja:self.jb]
 
-    #     # Incident Hy values
-    #     self.Hy[self.ia-1, self.ja:self.jb] = self.Hy[self.ia-1, self.ja:self.jb] - \
-    #                                    0.5 * self.Ez_inc[:, self.ja:self.jb]
-    #     self.Hy[self.ib-1, self.ja:self.jb] = self.Hy[self.ib-1, self.ja:self.jb] + \
-    #                                    0.5 * self.Ez_inc[:, self.ja:self.jb]
+        # Add point source
+        # pulse = np.exp(-0.5 * ((20 - time_step) / 8) ** 2)
+        # self.Dz[100, 100] = pulse
+            # Import and call the source function
+        source = getattr(sources, self.source_type)
+        source(self)
 
-    #     # Update time
-    #     self.time += self.dt
+
+        # Update time
+        self.time += self.dt
