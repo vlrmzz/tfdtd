@@ -1,3 +1,4 @@
+import numpy as np
 simulation_step_template = '''
 def simulation_step(self, time_step):
     self.actual_time_step = time_step
@@ -93,6 +94,7 @@ update_Hy_inc = '''
 
 plane_source = '''
     import numpy as np
-    pulse = np.exp(-0.5 * ((20 - self.actual_time_step) / 8) ** 2)
+    #pulse = np.exp(-0.5 * ((20 - self.actual_time_step) / 8) ** 2)
+    pulse = np.sin(2 * np.pi * self.frequency * self.time)
     self.Dz[self.ia:self.ib, self.ja] = pulse
 '''

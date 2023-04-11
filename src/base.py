@@ -2,57 +2,101 @@ import numpy as np
 import torch
 import pytorch_lightning as pl 
 
-class FDTD2D(pl.LightningModule):
-    def __init__(self, params):
-        super().__init__()
+import yaml
+from src.templates import simulation_step_template, point_source, plane_source, update_Dz_inc, set_boundaries
+from src.templates import update_Ez_inc, update_Hx_inc, update_Hy_inc
 
-        self.params = params
+class FDTD2D(pl.LightningModule):
+    def __init__(self, config_file=None, params=None):
+        super().__init__()
+        
+        if not (config_file or params):
+            raise ValueError("You must provide either a config file or a parameter dictionary.")
+        
+        if config_file:
+            print('Reading configuration from file...')
+            self.params = self.read_config_file(config_file)
+        else:
+            self.params = params
+            print('Reading configuration from dictionary...')
+
+        self.init_params()
         # Initialize time
         self.time = 0.0
         self.setup_simulation()
 
-
-    def setup_simulation(self):
-        # Initialize simulation parameters, grid, and fields
-        self.init_params()
-        self.init_grid()
-        self.init_pml()
-        self.init_plane_wave()
+    def read_config_file(self, config_file):
+        with open(config_file, 'r') as file:
+            params = yaml.safe_load(file)
+        return params
 
     def init_params(self):
         # Simulation parameters
-        self.nx = self.params.get('nx', 60)
-        self.ny = self.params.get('ny', 60)
-        self.time_steps = self.params.get('time_steps', 50)
+        self.nx = int(self.params.get('nx', 60))
+        self.ny = int(self.params.get('ny', 60))
+        self.time_steps = int(self.params.get('time_steps', 50))
         self.time = 0.0
-        self.dx = self.params.get('dx', 1e-9)
-        self.dy = self.params.get('dy', 1e-9)
+        self.dx = float(self.params.get('dx', 1e-9))
+        self.dy = float(self.params.get('dy', 1e-9))
         self.dt = self.dx / 6e8
         # PML
         self.use_pml = self.params.get('use_pml', True)
-        self.pml_thickness = self.params.get('pml_thickness', 20)
+        if self.use_pml == True:
+            self.pml_thickness = int(self.params.get('pml_thickness', 20))
         # TFSF
         self.use_tfsf = self.params.get('use_tfsf', False)
-        self.tfsf_thickness = self.params.get('tfsf_thickness', 10)
+        if self.use_tfsf == True:
+            self.tfsf_thickness = int(self.params.get('tfsf_thickness', 10))
         self.polarization = self.params.get('polarization', 'TM')
         # Source
         self.function = self.params.get('function', 'gaussian')
-            #plane_wave
-        self.use_plane_wave = self.params.get('use_plane_wave', True)
-        self.ia = self.params.get('plane_x1', 10)
-        self.ja = self.params.get('plane_y1', 20)
-        self.ib = self.params.get('plane_x2', 10)
-        self.jb = self.params.get('plane_y2', 20)
-            #point_source
-        self.use_point_source = self.params.get('use_point_source', False)
-        self.source_x = self.params.get('source_x', 150)
-        self.source_y = self.params.get('source_y', 150)
+        self.source_type = self.params.get('source_type', 'plane_wave')
+        #plane_wave
+        if self.source_type == 'plane_wave':
+            self.frequency = float(self.params.get('frequency', 1e9))
+            self.ia = int(self.params.get('plane_x1', 10))
+            self.ja = int(self.params.get('plane_y1', 20))
+            self.ib = int(self.params.get('plane_x2', 10))
+            self.jb = int(self.params.get('plane_y2', 20))
+        #point_source
+        elif self.source_type == 'point_source':
+            self.source_x = int(self.params.get('source_x', 150))
+            self.source_y = int(self.params.get('source_y', 150))
 
         # Physical constants
         self.c = 299792458  # Speed of light in vacuum
         self.epsilon_0 = 8.85418782e-12  # Permittivity of free space
         self.mu_0 = 1.25663706e-6  # Permeability of free space
 
+    def setup_simulation(self):
+        # Initialize simulation parameters, grid, and fields
+        self.init_params()
+        self.init_grid()
+        self.init_pml()
+        if self.source_type == 'point_source':
+            config_sim = simulation_step_template.format(
+            update_Ez_inc = '',
+            set_boundaries = '',
+            update_Dz_inc = '',
+            update_Hx_inc = '',
+            update_Hy_inc = '',
+            add_source= point_source,
+            )
+        elif self.source_type == 'plane_wave':
+            self.init_plane_wave()
+            config_sim = simulation_step_template.format(
+            update_Ez_inc = update_Ez_inc,
+            set_boundaries = set_boundaries,
+            update_Dz_inc = update_Dz_inc,
+            update_Hx_inc = update_Hx_inc,
+            update_Hy_inc = update_Hy_inc,
+            add_source= plane_source,
+        )
+
+        namespace = {}
+        exec(config_sim, namespace)
+        FDTD2D.simulation_step = namespace['simulation_step']
+        
 
     def init_grid(self):
         # Initialize grid
