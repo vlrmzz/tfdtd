@@ -6,6 +6,7 @@ import yaml
 from src.templates import simulation_step_template, point_source, plane_source, update_Dz_inc, set_boundaries
 from src.templates import update_Ez_inc, update_Hx_inc, update_Hy_inc
 
+
 class FDTD2D(pl.LightningModule):
     def __init__(self, config_file=None, params=None):
         super().__init__()
@@ -20,6 +21,7 @@ class FDTD2D(pl.LightningModule):
             self.params = params
             print('Reading configuration from dictionary...')
 
+        self.detectors = []
         self.init_params()
         # Initialize time
         self.time = 0.0
@@ -177,3 +179,14 @@ class FDTD2D(pl.LightningModule):
         # Absorbing Boundary Conditions 
         self.boundary_low = [0, 0] 
         self.boundary_high = [0, 0]
+
+    # Detectors
+    def add_detector(self, detector):
+        self.detectors.append(detector)
+
+    def remove_detector(self, name):
+        self.detectors = [detector for detector in self.detectors if detector.name != name]
+
+    def record_detectors(self, field_values):
+        for detector in self.detectors:
+            detector.record(field_values)
