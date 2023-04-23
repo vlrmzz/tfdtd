@@ -30,6 +30,13 @@ class FDTD2D(pl.LightningModule):
 
         self.initialize_params()
         self.initialize_grid()
+
+        self.pml = PML(self.nx, 
+                    self.ny, 
+                    self.pml_thickness, 
+                    backend=self.backend, 
+                    precision=self.precision)
+
         self.calculate_e_field_coefficients()
         self.calculate_h_field_coefficients()
         self.initialize_source()
@@ -47,14 +54,17 @@ class FDTD2D(pl.LightningModule):
         return params
 
     def initialize_params(self):
+        # backend
+        self.backend = self.params.get('backend', 'pytorch')
+        self.precision = self.params.get('precision', 'float64')
         # Physical constants
         self.c = 299792458  # Speed of light in vacuum
         self.eps_0 = 8.85418782e-12  # Permittivity of free space
         self.mu_0 = 1.25663706e-6  # Permeability of free space
-        self.mu_r = 1.0 # Relative permeability of air
-        self.sigma = 0.0 # Conductivity of air
-        self.sigma_m = 0.0 # Magnetic conductivity of air
-
+        self.mu_r = float(self.params.get('mu_r', 1.0)) # Relative permeability of air
+        self.sigma = float(self.params.get('sigma_e', 0.0)) # Conductivity of air
+        self.sigma_m = float(self.params.get('sigma_m', 0.0)) # Magnetic conductivity of air
+        # Simulation parameters
         self.nx = int(self.params.get('nx', 60))
         self.ny = int(self.params.get('ny', 60))
         self.time_steps = int(self.params.get('time_steps', 50))
@@ -63,12 +73,10 @@ class FDTD2D(pl.LightningModule):
         self.dy = float(self.params.get('dy', 1e-9))
         self.dt = self.dx / (np.sqrt(2)*self.c)
         self.polarization = self.params.get('polarization', 'TM')
-        # setup to get te follwing from the config file
-        self.backend = 'pytorch'
-        self.precision = 'float64'
+        self.use_pml = self.params.get('use_pml', True)
+        self.pml_thickness = int(self.params.get('pml_thickness', 10))
 
     def init_pml_params(self):
-        self.use_pml = self.params.get('use_pml', True)
         if self.use_pml:
             self.pml_thickness = int(self.params.get('pml_thickness', 20))
             self.pml = PML(self.nx, self.ny, self.pml_thickness)
@@ -79,7 +87,7 @@ class FDTD2D(pl.LightningModule):
         self.function = self.params.get('function', 'gaussian')
         if self.function == 'sinusoidal':
             self.frequency = float(self.params.get('frequency', 1e9))
-        self.source_type = self.params.get('source_type', 'point_source')
+        self.source_type = self.params.get('source_type', None)
         if self.source_type == 'line_source':
             self.line_x = int(self.params.get('line_x', 10))
             self.line_y1 = int(self.params.get('line_y1', 20))
@@ -115,8 +123,8 @@ class FDTD2D(pl.LightningModule):
         self.e_field = self.init_tensor_field(3)
         self.h_field = self.init_tensor_field(3)
 
-        self.eps_r = self.init_tensor_coefficient() + 1.0
-        self.mu_r = self.init_tensor_coefficient() + 1.0
+        self.eps_r = self.init_tensor_coefficient() + 1.0 # air 
+        self.mu_r = self.init_tensor_coefficient() + 1.0    # air
 
     def calculate_e_field_coefficients(self):
         """
@@ -134,8 +142,6 @@ class FDTD2D(pl.LightningModule):
             cb (np.ndarray or torch.Tensor): Coefficient 'cb' tensor with shape (nx, ny, nz).
         """
 
-        #self.ca = (1 - (self.sigma * self.dt) / (2 * self.eps_0 * self.eps_r)) / (1 + (self.sigma * self.dt) / (2 * self.eps_0 * self.eps_r))
-        #self.cb = (self.dt / (self.eps_0 * self.eps_r * self.dx )) / (1 + (self.sigma * self.dt)/(2 * self.eps_0 * self.eps_r))
         eaf = self.dt * self.sigma /(2 * self.eps_0 * self.eps_r)
         self.ca = (1 - eaf)/ (1 + eaf)
         self.cb = 0.5/(self.eps_r*( 1 + eaf))
@@ -156,8 +162,6 @@ class FDTD2D(pl.LightningModule):
             db (np.ndarray or torch.Tensor): Coefficient 'db' tensor with shape (nx, ny, nz).
         """
 
-        #self.da = (1 - (self.sigma_m * self.dt) / (2 * self.mu_0 * self.mu_r)) / (1 + (self.sigma_m * self.dt) / (2 * self.mu_0 * self.mu_r))
-        #self.db = (self.dt / (self.mu_0 * self.mu_r * self.dx )) / (1 + (self.sigma_m * self.dt) / (2 * self.mu_0 * self.mu_r))
         eaf = self.dt * self.sigma_m /(2 * self.mu_0 * self.mu_r)
         self.da = (1 - eaf)/ (1 + eaf)
         self.db = 0.5/(self.mu_r*( 1 + eaf))
@@ -180,6 +184,13 @@ class FDTD2D(pl.LightningModule):
     def remove_geometry(self, geometry):
         self.geometries.remove(geometry)
     
+    def update_geometry(self):
+        for geometry in self.geometries:
+            mask = geometry.generate_mask(self.eps_r.shape[0], self.eps_r.shape[1])
+            self.eps_r = self.eps_r * (1.0 - mask) + geometry.epsr * mask
+            self.calculate_e_field_coefficients()
+            self.calculate_h_field_coefficients()
+
     # Sources
     def add_source(self, source):
         self.sources.append(source)
@@ -201,15 +212,14 @@ class FDTD2D(pl.LightningModule):
             h_field (np.ndarray or pytorch.tensor): Magnetic field tensor with shape (nx, ny, 1).
             ca (np.ndarray or pytorch.tensor): Coefficient 'ca' tensor with shape (nx, ny).
             cb (np.ndarray or pytorch.tensor): Coefficient 'cb' tensor with shape (nx, ny).
-            dx (float): Spatial step along the x-axis.
-            dy (float): Spatial step along the y-axis.
+
 
         Returns:
             None
         """
         # Update Ex component
-        self.e_field[:-2, :-2, 0] = self.ca[:-2, :-2] * self.e_field[:-2, :-2, 0] - \
-                                    self.cb[:-2, :-2] * (self.h_field[:-2, :-2, 2] - self.h_field[:-2, 1:-1, 2])
+        self.e_field[:-2, :-2, 0] = self.pml.gj3[:, :-2] * self.ca[:-2, :-2] * self.e_field[:-2, :-2, 0] - \
+                                    self.pml.gj2[:, :-2] * self.cb[:-2, :-2] * (self.h_field[:-2, :-2, 2] - self.h_field[:-2, 1:-1, 2])
 
         return None
 
@@ -222,16 +232,14 @@ class FDTD2D(pl.LightningModule):
             h_field (np.ndarray or pytorch.tensor): Magnetic field tensor with shape (nx, ny, 1).
             ca (np.ndarray or pytorch.tensor): Coefficient 'ca' tensor with shape (nx, ny).
             cb (np.ndarray or pytorch.tensor): Coefficient 'cb' tensor with shape (nx, ny).
-            dx (float): Spatial step along the x-axis.
-            dy (float): Spatial step along the y-axis.
 
         Returns:
             None
         """
 
         # Update Ey component
-        self.e_field[:-2, :-2, 1] = self.ca[:-2, :-2] * self.e_field[:-2, :-2, 1] - \
-                                    self.cb[:-2, :-2] * (self.h_field[1:-1, :-2, 2] - self.h_field[:-2, :-2, 2])
+        self.e_field[:-2, :-2, 1] = self.pml.gi3[:-2, :] * self.ca[:-2, :-2] * self.e_field[:-2, :-2, 1] - \
+                                    self.pml.gi2[:-2, :] * self.cb[:-2, :-2] * (self.h_field[1:-1, :-2, 2] - self.h_field[:-2, :-2, 2])
 
         return None
 
@@ -245,8 +253,8 @@ class FDTD2D(pl.LightningModule):
             ca (np.ndarray or pytorch.tensor): Coefficient 'ca' tensor with shape (nx, ny).
             cb (np.ndarray or pytorch.tensor): Coefficient 'cb' tensor with shape (nx, ny).
         """
-        self.e_field[1:-1, 1:-1, 2] = self.ca[1:-1, 1:-1]*self.e_field[1:-1, 1:-1, 2] + \
-                    self.cb[1:-1, 1:-1] * ((self.h_field[1:-1, 1:-1, 1] - self.h_field[:-2, 1:-1, 1]) - \
+        self.e_field[1:-1, 1:-1, 2] = self.pml.gi3[1:-1, :] * self.pml.gj3[:, 1:-1] * self.ca[1:-1, 1:-1]*self.e_field[1:-1, 1:-1, 2] + \
+                    self.pml.gi2[1:-1, :] * self.pml.gj2[:, 1:-1]*self.cb[1:-1, 1:-1] * ((self.h_field[1:-1, 1:-1, 1] - self.h_field[:-2, 1:-1, 1]) - \
                                     (self.h_field[1:-1, 1:-1, 0] - self.h_field[1:-1, :-2, 0]))
 
     def update_Hx_2d(self):
@@ -258,15 +266,13 @@ class FDTD2D(pl.LightningModule):
             e_field (np.ndarray or pytorch.tensor): Electric field tensor with shape (nx, ny, 1).
             da (np.ndarray or pytorch.tensor): Coefficient 'da' tensor with shape (nx, ny).
             db (np.ndarray or pytorch.tensor): Coefficient 'db' tensor with shape (nx, ny).
-            dx (float): Spatial step along the x-axis.
-            dy (float): Spatial step along the y-axis.
 
         Returns:
             None
         """
         # Update Hx component
-        self.h_field[:-2, :-2, 0] =  self.da[:-2,:-2] * self.h_field[:-2, :-2, 0] + \
-                    self.db[:-2,:-2] * (self.e_field[:-2, :-2, 2] - self.e_field[:-2, 1:-1, 2])
+        self.h_field[:-2, :-2, 0] =  self.pml.fj3[:, :-2] * self.h_field[:-2, :-2, 0] + \
+                    self.pml.fj2[:, :-2] * self.db[:-2,:-2] * (self.e_field[:-2, :-2, 2] - self.e_field[:-2, 1:-1, 2])
 
     def update_Hy_2d(self):
         """
@@ -277,15 +283,13 @@ class FDTD2D(pl.LightningModule):
             e_field (np.ndarray or pytorch.tensor): Electric field tensor with shape (nx, ny, 1).
             da (np.ndarray or pytorch.tensor): Coefficient 'da' tensor with shape (nx, ny).
             db (np.ndarray or pytorch.tensor): Coefficient 'db' tensor with shape (nx, ny).
-            dx (float): Spatial step along the x-axis.
-            dy (float): Spatial step along the y-axis.
 
         Returns:
             None
         """
         # Update Hy component
-        self.h_field[:-2, :-2, 1] = self.da[:-2,:-2] * self.h_field[:-2, :-2, 1] + \
-                            self.db[:-2,:-2] * (self.e_field[1:-1, :-2, 2] - self.e_field[:-2, :-2, 2])
+        self.h_field[:-2, :-2, 1] = self.pml.fi3[:-2, :] * self.da[:-2,:-2] * self.h_field[:-2, :-2, 1] + \
+                            self.pml.fi2[:-2, :] * self.db[:-2,:-2] * (self.e_field[1:-1, :-2, 2] - self.e_field[:-2, :-2, 2])
 
 
     def update_Hz_2d(self):
@@ -297,15 +301,13 @@ class FDTD2D(pl.LightningModule):
             e_field (np.ndarray or pytorch.tensor): Electric field tensor with shape (nx, ny, 2).
             da (np.ndarray or pytorch.tensor): Coefficient 'da' tensor with shape (nx, ny).
             db (np.ndarray or pytorch.tensor): Coefficient 'db' tensor with shape (nx, ny).
-            dx (float): Spatial step along the x-axis.
-            dy (float): Spatial step along the y-axis.
 
         Returns:
             None
         """
         # Update Hz component
-        self.h_field[1:-1, 1:-1, 2] = self.da[1:-1, 1:-1] * self.h_field[1:-1, 1:-1, 2] + \
-                self.db[1:-1, 1:-1] * ((self.e_field[1:-1, 1:-1, 0] - self.e_field[1:-1, :-2, 0]) -\
+        self.h_field[1:-1, 1:-1, 2] = self.pml.fj3[:, 1:-1] * self.pml.fi3[1:-1, :] * self.da[1:-1, 1:-1] * self.h_field[1:-1, 1:-1, 2] + \
+                self.pml.fj2[:, 1:-1] * self.pml.fi2[1:-1, :] * self.db[1:-1, 1:-1] * ((self.e_field[1:-1, 1:-1, 0] - self.e_field[1:-1, :-2, 0]) -\
                                         (self.e_field[1:-1, 1:-1, 1] - self.e_field[:-2, 1:-1, 1]))
 
     # # Update TE
@@ -327,5 +329,4 @@ class FDTD2D(pl.LightningModule):
     def simulation_step(self, time_step):
         self.actual_time_step = time_step
         self.update_fields()
-        # Update time
         self.time += self.dt

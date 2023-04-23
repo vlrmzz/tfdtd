@@ -1,10 +1,14 @@
+# Define backend and precision
+backend: 'pytorch'     # possible values: pytorch, numpy
+precision: 'float64' #  possible values: float32, float64
+
 # Simulation parameters
-nx: 60
-ny: 60
-time_steps: 50
+nx: 200
+ny: 200
+time_steps: 1000
 dx: 0.01
 dy: 0.01
-polarization: 'TE'
+polarization: 'TE' # possible value: TE, TM
 
 # PML parameters
 use_pml: True

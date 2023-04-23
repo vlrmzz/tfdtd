@@ -10,11 +10,11 @@ def print_setup_info(simulation):
     print(f"use_pml: {simulation.use_pml}")
     if simulation.use_pml:
         print(f"pml_thickness: {simulation.pml_thickness}")
-    print(f"use_tfsf: {simulation.use_tfsf}")
-    if simulation.use_tfsf:
-        print(f"tfsf_thickness: {simulation.tfsf_thickness}")
-    print(f"polarization: {simulation.polarization}")
-    print(f"function: {simulation.function}")
+    #print(f"use_tfsf: {simulation.use_tfsf}")
+    #if simulation.use_tfsf:
+    #    print(f"tfsf_thickness: {simulation.tfsf_thickness}")
+    #print(f"polarization: {simulation.polarization}")
+    #print(f"function: {simulation.function}")
     if simulation.function:
         print(f"frequency: {simulation.frequency}")
     print(f"source_type: {simulation.source_type}")
@@ -26,7 +26,7 @@ def print_setup_info(simulation):
         print(f"source_x: {simulation.source_x}")
         print(f"source_y: {simulation.source_y}")
     print(f"c: {simulation.c}")
-    print(f"epsilon_0: {simulation.epsilon_0}")
+    print(f"epsilon_0: {simulation.eps_0}")
     print(f"mu_0: {simulation.mu_0}")
     print(f"geometries: {simulation.geometries}")
     print(f"sources: {simulation.sources}")
