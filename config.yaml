@@ -1,25 +1,29 @@
-nx: 200
-ny: 200
-time_steps: 100
-dx: 1e-9
-dy: 1e-9
-# PML
-use_pml: true
+# Simulation parameters
+nx: 60
+ny: 60
+time_steps: 50
+dx: 0.01
+dy: 0.01
+polarization: 'TE'
+
+# PML parameters
+use_pml: True
 pml_thickness: 20
-# TFSF
-use_tfsf: false
+
+# TFSF parameters
+use_tfsf: False
 tfsf_thickness: 10
-# Polarizatrion
-polarization: 'TM'
-# Source plane_wave
-# # source_type: 'plane_wave'
-# # frequency: 5e15
-# # function: 'gaussian'
-# # plane_x1 : 97
-# # plane_x2 : 103
-# # plane_y1 : 30
-# # plane_y2 : 150
-# Source point
+
+# Source parameters
+function: 'sinusoidal'
+frequency: 1500e6  #1.99862e14
 source_type: 'point_source'
-source_x: 100
-source_y: 100
+
+# Line source parameters
+line_x: 20
+line_y1: 40
+line_y2: 60
+
+# Point source parameters (if source_type is changed to 'point_source')
+source_x: 30
+source_y: 30

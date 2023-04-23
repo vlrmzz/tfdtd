@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from .base_detector import Detector
 
 # PointDetector class
@@ -9,4 +10,4 @@ class PointDetector(Detector):
 
     def record(self, field_values):
         value = field_values[self.position[0], self.position[1]]
-        self.recorded_values.append(value)
+        self.recorded_values.append(torch.tensor([value]))
