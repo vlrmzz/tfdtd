@@ -10,7 +10,11 @@ logging.basicConfig(filename='tensor_values.log', level=logging.INFO, format='%(
 logger = logging.getLogger(__name__)
 
 
-class FDTD2D(pl.LightningModule):
+class TFDTD2D(pl.LightningModule):
+    '''
+    base class for 2D FDTD simulation with temporal 
+    variant materials
+    '''
     def __init__(self, config_file=None, params=None):
         super().__init__()
         
