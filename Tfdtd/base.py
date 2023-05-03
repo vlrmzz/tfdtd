@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 import pytorch_lightning as pl 
+from tqdm import tqdm
+
 
 import yaml
 from Tfdtd.pml import PML
@@ -344,3 +346,21 @@ class TFDTD2D(pl.LightningModule):
         self.actual_time_step = time_step
         self.update_fields()
         self.time += self.dt
+
+    def run(self):
+        """
+        Run the simulation.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        for time_step in tqdm(range(self.time_steps)):
+            self.simulation_step(time_step)
+            if self.detectors is not None:
+                if self.polarization == 'TE':
+                    self.record_detectors(self.h_field[:,:,2])
+                elif self.polarization == 'TM':
+                    self.record_detectors(self.e_field[:,:,2])
