@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 
 import yaml
-from Tfdtd.pml import PML
+from simulator.pml import PML
 
 import logging
 logging.basicConfig(filename='tensor_values.log', level=logging.INFO, format='%(message)s')
@@ -30,6 +30,13 @@ class TFDTD2D(pl.LightningModule):
             self.params = params
             print('Reading configuration from dictionary...')
             
+        # Check if CUDA is available and set PyTorch to use GPU or CPU accordingly
+        if torch.cuda.is_available():
+            #self.comp_device = torch.device('cuda')
+            self.comp_device = torch.device('cpu')
+        else:
+            self.comp_device = torch.device('cpu')
+     
         self.geometries = []
         self.detectors = []
         self.sources = []
@@ -98,7 +105,7 @@ class TFDTD2D(pl.LightningModule):
         if self.backend == 'numpy':
             return np.zeros((self.nx, self.ny, num_components), dtype=self.precision)
         elif self.backend == 'pytorch':
-            return torch.zeros((self.nx, self.ny, num_components), dtype=getattr(torch, self.precision))
+            return torch.zeros((self.nx, self.ny, num_components), dtype=getattr(torch, self.precision)).to(self.comp_device)
 
 
     def init_tensor_coefficient(self):
@@ -111,7 +118,7 @@ class TFDTD2D(pl.LightningModule):
             tensor = np.ones((self.nx, self.ny, self.time_steps + 1), dtype=self.precision)
             return tensor
         elif self.backend == 'pytorch':
-            tensor = torch.ones((self.nx, self.ny, self.time_steps + 1), dtype=getattr(torch, self.precision))
+            tensor = torch.ones((self.nx, self.ny, self.time_steps + 1), dtype=getattr(torch, self.precision)).to(self.comp_device)
             return tensor
 
     def initialize_grid(self):
@@ -142,9 +149,9 @@ class TFDTD2D(pl.LightningModule):
             self.ca = np.zeros((self.nx, self.ny, self.time_steps), dtype=self.precision)
             self.cb = np.zeros((self.nx, self.ny, self.time_steps), dtype=self.precision)
         elif self.backend == 'pytorch':
-            eaf = torch.zeros((self.nx, self.ny, self.time_steps), dtype=getattr(torch, self.precision))
-            self.ca = torch.zeros((self.nx, self.ny, self.time_steps), dtype=getattr(torch, self.precision))
-            self.cb = torch.zeros((self.nx, self.ny, self.time_steps), dtype=getattr(torch, self.precision))
+            eaf = torch.zeros((self.nx, self.ny, self.time_steps), dtype=getattr(torch, self.precision)).to(self.comp_device)
+            self.ca = torch.zeros((self.nx, self.ny, self.time_steps), dtype=getattr(torch, self.precision)).to(self.comp_device)
+            self.cb = torch.zeros((self.nx, self.ny, self.time_steps), dtype=getattr(torch, self.precision)).to(self.comp_device)
 
         for t in range(self.time_steps):
             eaf[:, :, t] = self.dt * self.sigma / (2 * self.eps_0 * self.eps_r[:, :, t])
@@ -173,9 +180,9 @@ class TFDTD2D(pl.LightningModule):
             self.da = np.zeros((self.nx, self.ny, self.time_steps), dtype=self.precision)
             self.db = np.zeros((self.nx, self.ny, self.time_steps), dtype=self.precision)
         elif self.backend == 'pytorch':
-            eaf = torch.zeros((self.nx, self.ny, self.time_steps), dtype=getattr(torch, self.precision))
-            self.da = torch.zeros((self.nx, self.ny, self.time_steps), dtype=getattr(torch, self.precision))
-            self.db = torch.zeros((self.nx, self.ny, self.time_steps), dtype=getattr(torch, self.precision))
+            eaf = torch.zeros((self.nx, self.ny, self.time_steps), dtype=getattr(torch, self.precision)).to(self.comp_device)
+            self.da = torch.zeros((self.nx, self.ny, self.time_steps), dtype=getattr(torch, self.precision)).to(self.comp_device)
+            self.db = torch.zeros((self.nx, self.ny, self.time_steps), dtype=getattr(torch, self.precision)).to(self.comp_device)
 
         for t in range(self.time_steps):
             eaf[:, :, t] = self.dt * self.sigma_m / (2 * self.mu_0 * self.mu_r[:, :, t])

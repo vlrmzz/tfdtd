@@ -3,8 +3,8 @@ import torch
 import pytorch_lightning as pl 
 
 import yaml
-from Tfdtd.pml import PML
-from .base import TFDTD2D
+from simulator.pml import PML
+from simulator.base import TFDTD2D
 
 import logging
 logging.basicConfig(filename='tensor_values.log', level=logging.INFO, format='%(message)s')

@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import numpy as np
 
 def viz2D(sim,field):
@@ -93,25 +94,34 @@ def viz_detector(simulation,detector):
     magnitude = np.abs(detector_fft)
     phase = np.angle(detector_fft)
 
+    # Create a 2x2 grid of subplots
+    fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(12, 8))
+
     # Plot the time-domain detector output
-    plt.figure()
-    plt.plot(t, detector_output)
-    plt.xlabel('Time (s)')
-    plt.ylabel('Amplitude')
-    plt.title('Detector Output (Time Domain)')
+    axs[0, 0].plot(t, detector_output)
+    axs[0, 0].set_xlabel('Time (s)')
+    axs[0, 0].set_ylabel('Amplitude')
+    axs[0, 0].set_title('Detector Output (Time Domain)')
 
     # Plot the magnitude of the Fourier Transform
-    plt.figure()
-    plt.plot(freqs[:time_steps//2][0:100], magnitude[:time_steps//2][0:100])
-    plt.xlabel('Frequency (Hz)')
-    plt.ylabel('Magnitude')
-    plt.title('Detector Output FFT (Magnitude)')
+    axs[0, 1].plot(freqs[:time_steps // 2][0:100], magnitude[:time_steps // 2][0:100])
+    axs[0, 1].set_xlabel('Frequency (Hz)')
+    axs[0, 1].set_ylabel('Magnitude')
+    axs[0, 1].set_title('Detector Output FFT (Magnitude)')
+    max_xticks = 10
+    axs[0, 1].xaxis.set_major_locator(MaxNLocator(max_xticks))
 
     # Plot the phase of the Fourier Transform
-    plt.figure()
-    plt.plot(freqs[:time_steps//2], phase[:time_steps//2])
-    plt.xlabel('Frequency (Hz)')
-    plt.ylabel('Phase (radians)')
-    plt.title('Detector Output FFT (Phase)')
+    axs[1, 0].plot(freqs[:time_steps // 2], phase[:time_steps // 2])
+    axs[1, 0].set_xlabel('Frequency (Hz)')
+    axs[1, 0].set_ylabel('Phase (radians)')
+    axs[1, 0].set_title('Detector Output FFT (Phase)')
 
+    # Remove the unused subplot
+    axs[1, 1].axis('off')
+
+    # Adjust spacing between subplots
+    fig.tight_layout()
+
+    # Show the figure
     plt.show()
