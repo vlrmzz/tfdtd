@@ -1,0 +1,33 @@
+# Define backend and precision
+backend: 'pytorch'     # possible values: pytorch, numpy
+precision: 'float64' #  possible values: float32, float64
+
+# Simulation parameters
+nx: 200
+ny: 200
+time_steps: 1000
+dx: 0.01
+dy: 0.01
+polarization: 'TE' # possible value: TE, TM
+
+# PML parameters
+use_pml: True
+pml_thickness: 20
+
+# TFSF parameters
+use_tfsf: False
+tfsf_thickness: 10
+
+# Source parameters
+function: 'sinusoidal'
+frequency: 1500e6  #1.99862e14
+source_type: 'point_source'
+
+# Line source parameters
+line_x: 20
+line_y1: 40
+line_y2: 60
+
+# Point source parameters (if source_type is changed to 'point_source')
+source_x: 30
+source_y: 30

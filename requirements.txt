@@ -1,0 +1,50 @@
+aiohttp==3.8.4
+aiosignal==1.3.1
+async-timeout==4.0.2
+attrs==22.2.0
+brotlipy @ file:///D:/bld/brotlipy_1648854320485/work
+certifi==2022.12.7
+cffi @ file:///D:/bld/cffi_1656782950753/work
+charset-normalizer @ file:///home/conda/feedstock_root/build_artifacts/charset-normalizer_1661170624537/work
+colorama==0.4.6
+contourpy==1.0.7
+cryptography @ file:///D:/bld/cryptography_1637687418742/work
+cycler==0.11.0
+filelock @ file:///home/conda/feedstock_root/build_artifacts/filelock_1679807057726/work
+fonttools==4.39.2
+frozenlist==1.3.3
+fsspec==2023.3.0
+idna @ file:///home/conda/feedstock_root/build_artifacts/idna_1663625384323/work
+importlib-resources==5.12.0
+Jinja2 @ file:///home/conda/feedstock_root/build_artifacts/jinja2_1655912915439/work
+kiwisolver==1.4.4
+lightning-utilities==0.8.0
+MarkupSafe @ file:///D:/bld/markupsafe_1654706128421/work
+matplotlib==3.7.1
+mpmath @ file:///home/conda/feedstock_root/build_artifacts/mpmath_1678228039184/work
+multidict==6.0.4
+networkx @ file:///home/conda/feedstock_root/build_artifacts/networkx_1673151334029/work
+numpy @ file:///D:/bld/numpy_1651020737746/work
+packaging==23.0
+Pillow==9.4.0
+pycparser @ file:///home/conda/feedstock_root/build_artifacts/pycparser_1636257122734/work
+pyOpenSSL @ file:///home/conda/feedstock_root/build_artifacts/pyopenssl_1608055815057/work
+pyparsing==3.0.9
+PySocks @ file:///D:/bld/pysocks_1661604991356/work
+python-dateutil==2.8.2
+pytorch-lightning==2.0.0
+PyYAML==6.0
+requests @ file:///home/conda/feedstock_root/build_artifacts/requests_1673863902341/work
+six @ file:///home/conda/feedstock_root/build_artifacts/six_1620240208055/work
+sympy @ file:///home/conda/feedstock_root/build_artifacts/sympy_1679342554516/work
+torch==2.0.0
+torchaudio==2.0.0
+torchmetrics==0.11.4
+torchvision==0.15.0
+tqdm==4.65.0
+typing_extensions @ file:///home/conda/feedstock_root/build_artifacts/typing_extensions_1678559861143/work
+urllib3 @ file:///home/conda/feedstock_root/build_artifacts/urllib3_1678635778344/work
+win-inet-pton @ file:///D:/bld/win_inet_pton_1667051142467/work
+wincertstore==0.2
+yarl==1.8.2
+zipp==3.15.0
