@@ -79,16 +79,18 @@ def viz2D(sim,field):
 
 def viz_detector(simulation,detector):
     # Define simulation parameters
-    time_steps = simulation.time_steps
+    start_time_step = 10000
+    end_time_steps = simulation.time_steps
+    n_time_steps = end_time_steps - start_time_step
     dt = simulation.dt
 
     # Create a simple FDTD detector output (replace this with your actual detector data)
-    t = np.arange(0, time_steps * dt, dt)
+    t = np.arange(0, n_time_steps * dt, dt)
     detector_output = np.stack([t.numpy() for t in detector.recorded_values]).squeeze()
 
     # Compute the Fourier Transform of the detector output
     detector_fft = np.fft.fft(detector_output)
-    freqs = np.fft.fftfreq(time_steps, dt)
+    freqs = np.fft.fftfreq(n_time_steps, dt)
 
     # Calculate the magnitude and phase of the Fourier Transform
     magnitude = np.abs(detector_fft)
@@ -104,7 +106,7 @@ def viz_detector(simulation,detector):
     axs[0, 0].set_title('Detector Output (Time Domain)')
 
     # Plot the magnitude of the Fourier Transform
-    axs[0, 1].plot(freqs[:time_steps // 2][0:100], magnitude[:time_steps // 2][0:100])
+    axs[0, 1].plot(freqs[:n_time_steps // 2][0:100], magnitude[:n_time_steps // 2][0:100])
     axs[0, 1].set_xlabel('Frequency (Hz)')
     axs[0, 1].set_ylabel('Magnitude')
     axs[0, 1].set_title('Detector Output FFT (Magnitude)')
@@ -112,7 +114,7 @@ def viz_detector(simulation,detector):
     axs[0, 1].xaxis.set_major_locator(MaxNLocator(max_xticks))
 
     # Plot the phase of the Fourier Transform
-    axs[1, 0].plot(freqs[:time_steps // 2], phase[:time_steps // 2])
+    axs[1, 0].plot(freqs[:n_time_steps // 2], phase[:n_time_steps // 2])
     axs[1, 0].set_xlabel('Frequency (Hz)')
     axs[1, 0].set_ylabel('Phase (radians)')
     axs[1, 0].set_title('Detector Output FFT (Phase)')
