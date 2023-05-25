@@ -14,7 +14,9 @@ yaml
 ## Installation
 To use the TFDTD library, you can clone the repository to your local machine.
 
+'''
 git clone https://github.com/vlrmzz/tfdtd.git
+'''
 
 ## How to use the TFDTD Library
 The library primarily consists of two classes: FDTD2D and TFDTD2D.
@@ -25,7 +27,7 @@ The main simulation parameters and material properties are provided through a YA
 
 In order to set up a simulation, you would first need to initialize a TFDTD2D or FDTD2D object with a configuration file or a parameters dictionary. Here is an example of how to initialize a FDTD2D object with a configuration file:
 
-
+'''
 from tfdtd import FDTD2D
 
 simulation = FDTD2D(config_file='path_to_config_file.yaml')
@@ -55,6 +57,17 @@ params = {
 # Initialize the FDTD2D object with the parameters
 simulation = FDTD2D(params=params)
 
+# Set up the waveguide geometry
+waveguide_width = 10  # Width of the waveguide
+waveguide_height = 5  # Height of the waveguide
+waveguide_x_start = int(simulation.nx / 2 - waveguide_width / 2)  # X-coordinate of the waveguide start position
+waveguide_x_end = int(simulation.nx / 2 + waveguide_width / 2)  # X-coordinate of the waveguide end position
+waveguide_y_start = int(simulation.ny / 2 - waveguide_height / 2)  # Y-coordinate of the waveguide start position
+waveguide_y_end = int(simulation.ny / 2 + waveguide_height / 2)  # Y-coordinate of the waveguide end position
+
+# Set the waveguide material properties
+simulation.eps_r[waveguide_x_start:waveguide_x_end, waveguide_y_start:waveguide_y_end] = waveguide_permittivity
+
 # Setup the point source
 source_params = {
     'x': 30, 
@@ -74,3 +87,4 @@ for _ in range(simulation.time_steps):
 # Access the electric and magnetic field values
 e_field = simulation.e_field
 h_field = simulation.h_field
+'''
