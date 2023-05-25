@@ -14,9 +14,9 @@ yaml
 ## Installation
 To use the TFDTD library, you can clone the repository to your local machine.
 
-'''
+```
 git clone https://github.com/vlrmzz/tfdtd.git
-'''
+```
 
 ## How to use the TFDTD Library
 The library primarily consists of two classes: FDTD2D and TFDTD2D.
