@@ -8,7 +8,7 @@ import yaml
 from simulator.pml import PML
 
 import logging
-logging.basicConfig(filename='tensor_values.log', level=logging.INFO, format='%(message)s')
+
 logger = logging.getLogger(__name__)
 
 
