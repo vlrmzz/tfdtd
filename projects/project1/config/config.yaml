@@ -1,0 +1,53 @@
+# Backend and precision
+backend: 'pytorch'  # Possible values: pytorch, numpy
+precision: 'float64'  # Possible values: float32, float64
+
+# Simulation parameters
+nx: 200
+ny: 200
+time_steps: 10
+dx: 0.01
+dy: 0.01
+polarization: 'TE'  # Possible values: TE, TM
+
+# PML parameters
+use_pml: True
+pml_thickness: 20
+
+# TFSF parameters
+use_tfsf: False
+tfsf_thickness: 10
+
+# Sources
+sources:
+  - name: 'source1'
+    type: 'point' # Possible values: point, line
+    function: 'gaussian' # Possible values: gaussian, sinusoidal
+    amplitude: 1
+    t0: 0
+    frequency_width: 1e9
+    frequency_center: 1e9 
+    x: 50 
+    y: 50 
+  - name: 'source2'
+    type: 'line'
+    function: 'sinusoidal'
+    frequency: 0.5e14
+    x_start: 40
+    x_end: 40
+    y_start: 70
+    y_end: 90
+
+
+# Detectors
+detectors:
+  - name: 'detector1'
+    type: 'point'
+    x: 100
+    y: 100
+  - name: 'detector2'
+    type: 'line'
+    x_start: 40
+    x_end: 40
+    y_start: 70
+    y_end: 90
