@@ -27,7 +27,7 @@ The main simulation parameters and material properties are provided through a YA
 
 In order to set up a simulation, you would first need to initialize a TFDTD2D or FDTD2D object with a configuration file or a parameters dictionary. Here is an example of how to initialize a FDTD2D object with a configuration file:
 
-'''
+```
 from tfdtd import FDTD2D
 
 simulation = FDTD2D(config_file='path_to_config_file.yaml')
@@ -87,4 +87,4 @@ for _ in range(simulation.time_steps):
 # Access the electric and magnetic field values
 e_field = simulation.e_field
 h_field = simulation.h_field
-'''
+```
