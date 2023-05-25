@@ -14,7 +14,6 @@ yaml
 ## Installation
 To use the TFDTD library, you can clone the repository to your local machine.
 
-'''python
 git clone https://github.com/vlrmzz/tfdtd.git
 
 ## How to use the TFDTD Library
@@ -26,7 +25,7 @@ The main simulation parameters and material properties are provided through a YA
 
 In order to set up a simulation, you would first need to initialize a TFDTD2D or FDTD2D object with a configuration file or a parameters dictionary. Here is an example of how to initialize a FDTD2D object with a configuration file:
 
-'''python
+
 from tfdtd import FDTD2D
 
 simulation = FDTD2D(config_file='path_to_config_file.yaml')
@@ -35,7 +34,7 @@ simulation = FDTD2D(config_file='path_to_config_file.yaml')
 Here's a basic example of how you might set up a simulation to find the modes of a waveguide using this library. 
 Note that this example is incomplete and requires further information about the waveguide geometry, material properties, and boundary conditions.
 
-'''python
+
 # define your simulation parameters in a dictionary or YAML file
 params = {
     'backend': 'pytorch',
