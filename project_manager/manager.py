@@ -1,5 +1,7 @@
 import os
 import shutil
+import logging
+
 from simulator.base import TFDTD2D
 from simulator.fdtd import FDTD2D
 import yaml
@@ -7,8 +9,28 @@ from simulator.sources import LineSource, PointSource
 from simulator.detectors import LineDetector, PointDetector
 from simulator.utilities import print_setup_info 
 
+logger = logging.getLogger(__name__)
+
 class Project:
+    """
+    The `Project` class is used to manage a simulation project. It provides methods for setting up project directories, 
+    copying configuration files, setting up the simulation, and running the simulation.
+
+    Attributes:
+        config_folder (str): The path to the directory containing the configuration file.
+        project_dir (str): The path to the main directory for the project.
+        simulation (TFDTD2D): The simulation object, which is created when `setup_simulation` is called.
+        config_file (str): The path to the configuration file.
+    """
+
     def __init__(self, config_folder, project_dir):
+        """
+        The constructor for the `Project` class.
+
+        Parameters:
+            config_folder (str): The path to the directory containing the configuration file.
+            project_dir (str): The path to the main directory for the project.
+        """
         self.config_folder = config_folder
         self.project_dir = project_dir
         self.simulation = None
@@ -69,7 +91,7 @@ class Project:
         for detector in detectors:
             self.simulation.add_detector(detector)
             
-        print_setup_info(self.simulation)
+        logger.info(print_setup_info(self.simulation))
 
     def setup(self):
         self.setup_directories()
