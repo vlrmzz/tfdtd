@@ -130,7 +130,7 @@ class Project:
         # Create a list to hold the detectors
         detectors = []
          
-        for detector_config in config['sources']:
+        for detector_config in config['detectors']:
             # Create the appropriate source object based on the type
             if detector_config['type'] == 'line':
                 detector = LineDetector(detector_config)
@@ -142,7 +142,7 @@ class Project:
             # Add the source to the list
             detectors.append(detector)
         
-        self.simulation = TFDTD2D(config_file=self.config_file)
+        self.simulation = TFDTD2D(config_file=self.config_file, sim_dir=self.sim_dir)
         for source in sources:
             self.simulation.add_source(source)
         for detector in detectors:

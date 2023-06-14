@@ -3,7 +3,7 @@ import torch
 import pytorch_lightning as pl 
 from tqdm import tqdm
 
-
+import os
 import yaml
 from simulator.pml import PML
 
@@ -17,8 +17,11 @@ class TFDTD2D(pl.LightningModule):
     base class for 2D FDTD simulation with temporal 
     variant materials
     '''
-    def __init__(self, config_file=None, params=None):
+    def __init__(self, config_file=None, params=None, sim_dir = None):
         super().__init__()
+        
+
+        self.sim_dir = sim_dir
         
         if not (config_file or params):
             raise ValueError("You must provide either a config file or a parameter dictionary.")
@@ -36,7 +39,7 @@ class TFDTD2D(pl.LightningModule):
             self.comp_device = torch.device('cpu')
         else:
             self.comp_device = torch.device('cpu')
-     
+
         self.geometries = []
         self.detectors = []
         self.sources = []
@@ -80,6 +83,7 @@ class TFDTD2D(pl.LightningModule):
         self.nx = int(self.params.get('nx', 60))
         self.ny = int(self.params.get('ny', 60))
         self.time_steps = int(self.params.get('time_steps', 50))
+        self.save_fields_every = int(self.params.get('save_fields_every', 5))
         self.time = 0.0
         self.dx = float(self.params.get('dx', 1e-9))
         self.dy = float(self.params.get('dy', 1e-9))
@@ -226,7 +230,37 @@ class TFDTD2D(pl.LightningModule):
         for source in self.sources:
             source.update_source(time, dt, field)
 
-    # Fields updates
+    def save_fields(self, time_step):
+        e_field_path = os.path.join(self.sim_dir, 'fields', f'e_field_at_timestep_{time_step}.npy')
+        h_field_path = os.path.join(self.sim_dir, 'fields', f'h_field_at_timestep_{time_step}.npy')
+        
+        if self.backend == 'numpy':
+            np.save(e_field_path, self.e_field)
+            np.save(h_field_path, self.h_field)
+        elif self.backend == 'pytorch':
+            torch.save(self.e_field, e_field_path.replace('.npy', '.pt'))
+            torch.save(self.h_field, h_field_path.replace('.npy', '.pt'))
+        else:
+            raise ValueError(f"Unsupported backend: {self.backend}")
+                
+    def save_geometry(self):
+        geometry_path = os.path.join(self.sim_dir, 'geometry', 'eps_r.npy')
+        
+        if self.backend == 'numpy':
+            np.save(geometry_path, self.eps_r)
+        elif self.backend == 'pytorch':
+            torch.save(self.eps_r, geometry_path.replace('.npy', '.pt'))
+        else:
+            raise ValueError(f"Unsupported backend: {self.backend}")
+
+    def save_detectors(self):
+        detectors_path = os.path.join(self.sim_dir, 'detectors')   
+        for detector in self.detectors:
+            detector_path = os.path.join(detectors_path, f'{detector.name}.pt')
+            torch.save(detector.recorded_values, detector_path)
+
+
+   # Fields updates
     def update_Ex_2d(self):
         """
         Update the electric field components for TE polarization in 2D using FDTD method.
@@ -366,8 +400,15 @@ class TFDTD2D(pl.LightningModule):
         """
         for time_step in tqdm(range(self.time_steps)):
             self.simulation_step(time_step)
+            if time_step % self.save_fields_every == 0:
+                self.save_fields(time_step)
             if self.detectors is not None:
                 if self.polarization == 'TE':
                     self.record_detectors(self.h_field[:,:,2])
                 elif self.polarization == 'TM':
                     self.record_detectors(self.e_field[:,:,2])
+        
+        # save geometry
+        self.save_geometry()
+        # save detectors
+        self.save_detectors()
