@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import logging
 
@@ -23,31 +24,87 @@ class Project:
         config_file (str): The path to the configuration file.
     """
 
-    def __init__(self, config_folder, project_dir):
+    def __init__(self, config_file, projects_dir, project_dir):
         """
         The constructor for the `Project` class.
 
         Parameters:
-            config_folder (str): The path to the directory containing the configuration file.
+            config_file (str): The path to the directory containing the configuration file.
+            projects_dir (str): The path to the directory where all projects are saved.
             project_dir (str): The path to the main directory for the project.
         """
-        self.config_folder = config_folder
-        self.project_dir = project_dir
+        
+        self.projects_dir = projects_dir
+        self.project_dir = os.path.join(projects_dir, project_dir)
         self.simulation = None
-        self.config_file = config_folder
+        self.config_file = config_file
+
+        # Check if the projects directory exists, if not, create it
+        os.makedirs(self.projects_dir, exist_ok=True)
+
+    def copy_config(self):
+        """
+        Copies the config file to the target directory.
+
+        The target directory is the 'config' subdirectory within the current simulation directory.
+
+        Returns
+        -------
+        None
+        """
+
+        # Path to the 'config' subdirectory within the current simulation directory
+        config_dir = os.path.join(self.sim_dir, 'config')
+
+        # Copy the config file to the target directory
+        shutil.copy2(self.config_file, config_dir)
+
+
     def setup_directories(self):
+        """
+        Sets up the necessary directories for a new simulation.
+
+        This function first checks whether the main project directory exists. If it doesn't, the function creates it.
+        It then scans the project directory for any existing simulation directories. These are expected to follow the
+        naming convention "simulation" followed by an integer (e.g., "simulation1", "simulation2", etc.).
+        
+        The function determines the highest existing simulation number and creates a new simulation directory
+        with a number one higher than the highest existing number.
+        
+        Finally, the function creates the necessary subdirectories ('detectors', 'geometry', 'fields', 'config')
+        within the new simulation directory.
+        
+        Parameters
+        ----------
+        self : object
+            The object instance. Should have a `project_dir` attribute indicating the path to the project directory.
+
+        Returns
+        -------
+        None
+        """
+        
         # Create the main project directory if it doesn't exist
         os.makedirs(self.project_dir, exist_ok=True)
-        
+
+        # Find all existing simulation directories
+        sim_dirs = [d for d in os.listdir(self.project_dir) if re.match(r'simulation\d+', d)]
+
+        # Extract the simulation numbers and find the highest one
+        sim_nums = [int(re.search(r'\d+', d).group()) for d in sim_dirs]
+        max_sim_num = max(sim_nums) if sim_nums else 0
+
+        # Create a new simulation directory with a number one higher than the highest number
+        self.sim_dir = os.path.join(self.project_dir, f'simulation{max_sim_num + 1}')
+        os.makedirs(self.sim_dir, exist_ok=True)
+
         # Create subdirectories
         subdirs = ['detectors', 'geometry', 'fields', 'config']
         for subdir in subdirs:
-            os.makedirs(os.path.join(self.project_dir, subdir), exist_ok=True)
+            os.makedirs(os.path.join(self.sim_dir, subdir), exist_ok=True)
             
-    def copy_config(self):
-
-        # Copy the config file to the target directory
-        shutil.copy2(self.config_file, os.path.join(self.project_dir, 'config'))
+        # Copy configuration file to the 'config' subdirectory
+        self.copy_config()
 
     def setup_simulation(self):
         # Read the YAML configuration file
@@ -95,7 +152,6 @@ class Project:
 
     def setup(self):
         self.setup_directories()
-        self.copy_config()
         self.setup_simulation()
         
     def run(self):
